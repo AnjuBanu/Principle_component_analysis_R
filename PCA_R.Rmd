@@ -3,6 +3,10 @@ title: "PCA in R for Decathlone Dataset"
 author: "Anjum Ismail"
 date: "28/03/2021"
 output: html_document
+    toc: true
+    toc_float: true
+    self_contained: false
+    keep_md: true
 ---
 
 # Download all the libraries rerquied
