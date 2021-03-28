@@ -1,0 +1,174 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Download all the libraries rerquied
+
+```{r include=FALSE}
+if(!require(skimr)) install.packages("skimr") #skim
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(FactoMineR)) install.packages("FactoMineR") #prcomp
+if(!require(factoextra)) install.packages("factoextra") # get_eig() fviz_eig()
+if(!require(mlbench)) install.packages("mlbench") # contains various datasets
+if(!require(caret)) install.packages("caret") #createDataPartition
+if(!require(RANN)) install.packages("RANN")
+if(!require(mice)) install.packages("mice")
+if(!require(NbClust)) install.packages("NbClust")
+
+library(skimr)
+library(tidyverse)
+library(FactoMineR)
+library(factoextra)
+library(mlbench)
+library(caret)
+library(RANN)
+library(mice)
+library(NbClust)
+```
+
+
+# Principal Component Analysis
+
+The dataset `decathlon` contains athletes' performance during two sporting meetings. The first ten columns corresponds to the performance of the athletes for the 10 events of the decathlon. The columns 11 and 12 correspond respectively to the rank and the points obtained. The last column is a categorical variable corresponding to the sporting event (2004 Olympic Game or 2004 Decastar).
+
+
+```{r}
+# load the dataset
+data ("decathlon")
+
+# Create a copy of dataset
+decathlon_copy <- decathlon
+
+# Inspect the dataset
+head(decathlon)
+
+```
+
+
+```{r}
+# Inspect the broader overview of dataset
+skim (decathlon)
+```
+The above result gives a clear view that the dataset does not have any missing values
+
+
+```{r}
+# To Stimulate the real world scenario lets divide the dataset into training and test.
+# The training dataset will be 90% and the remaining 10% is test data set
+# Feature Rank and point is ignored 
+# First 10 features will be the input and Competition will be the target feature
+
+train_data <- createDataPartition(decathlon_copy$Competition, p=0.9, list=FALSE)
+decathlon_train <- decathlon_copy[train_data, ]
+decathlon_test <- decathlon_copy[-train_data, ]
+
+# verify the dimensions of test and train data set created
+dim_train<- as.vector(dim (decathlon_train))
+dim_test<- as.vector(dim (decathlon_test))
+
+paste0 ("Training dataset has ", dim_train[1], " records")
+paste0 ("Test dataset has ", dim_test[1], " records")
+
+```
+```{r}
+# Applying PCA for the first 10 columns and also performing scaling
+# From the proportion of variance we can see that PC1 is having having the highest variance with respect to data
+decathlon_pca <- prcomp(decathlon_train[, 1:10], center = TRUE, scale. = TRUE)
+summary(decathlon_pca)
+
+#Displaying the eigen vectors for every PCA and feature
+decathlon_pca$rotation
+
+```
+```{r}
+# Extract the Eigen values and identify the number of PC's to be considered for 80% of over all variability
+
+eigen_values <- get_eig(decathlon_pca)
+eigen_values
+
+# From the below result we can confirm that PC1 to PC% should be considered for 80% variability 
+```
+
+```{r}
+# Scree plot the vairance with respect to PC
+
+fviz_eig(decathlon_pca)
+
+# From the below plot it is very clear that there is very little variability after PC5
+```
+
+
+
+```{r}
+# Inspect the variance of the data with respect to PC
+
+result <- get_pca_var(decathlon_pca)
+result
+
+```
+
+```{r}
+# Let identify the correlation between the each variable and the PCi
+
+res_cor<- result$cor
+res_cor
+
+```
+
+```{r}
+# Identify the proportion of variance between each variance and its PCi
+
+res_cos2 <- result$cos2
+res_cos2
+```
+
+```{r}
+# Let us try to visualize the variance for the first 2 PCi
+result_plot <- cbind (res_cos2[,1:2], variability_explained = rowSums(res_cos2[,1:2]))
+result_plot
+
+fviz_pca_var(decathlon_pca, col.var = "cos2",gradient.cols = "lancet")
+
+# From the below visualization we observe that variable "400m" has the highest variance wrt the PCi
+
+```
+
+```{r}
+
+# Plot all the observation against the first two PCs
+# Colour individuals by the competition type
+
+
+fviz_pca_biplot(decathlon_pca, label="var", habillage = decathlon_train$Competition, addEllipses = TRUE)
+
+```
+
+```{r}
+
+# Creating the updated training dataset with PC1 to PC5 because the overall 80% vraibility reflects within PC1 to PC5
+
+decathlon_train_pca_transformed <- decathlon_pca$x[ ,1:5] %>%
+  as.data.frame() %>%
+  mutate (Competition = decathlon_train$Competition)
+
+decathlon_train_pca_transformed
+
+
+```
+
+
+```{r}
+
+# Predict the test result for the PCA mode created 
+
+decathlon_test_pca <- predict(decathlon_pca, decathlon_test[, 1:10])
+
+decathlon_test_pca_transformed <- decathlon_test_pca[,1:5] %>%
+  as.data.frame() %>%
+  mutate(Competition = decathlon_test$Competition)
+
+decathlon_test_pca_transformed
+
+```
+
